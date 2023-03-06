@@ -80,18 +80,46 @@ def data_split(n,x):
 
 def predicted_models(n,X,dx):
         library_functions = [
-            lambda x : 1./(1+x**2)
+            #lambda x : (math.e)**x,
+            #lambda x : np.log(1-x),
+            #lambda x : np.log(1+x),
+            lambda x : np.sin(x),
+            lambda x : np.cos(x),
+            lambda x : 1/(1-x),
+            lambda x : 1/(1-x**2),
+            lambda x : 1/((1-x)**2),
+            lambda x : 1/(1+x),
+            lambda x : 1/(1+x**2),
+            lambda x : 1/((1+x)**2),
+            lambda x : 1/x,
+            #lambda x : 1/x**2,
+            #lambda x : 1/x**3
         ]
         library_function_names = [
-            lambda x : '1/1+' + x + '^2'
+             #lambda x : 'e^' + x,
+    	    #lambda x : 'ln(1-'+ x + ')',
+            #lambda x : 'ln(1+'+ x + ')',
+    	    lambda x : 'sin(' + x + ')',
+    	    lambda x : 'cos(' + x + ')',
+    	    lambda x : '1/1-' + x,
+    	    lambda x : '1/1-' + x + '^2',
+    	    lambda x : '1/(1-' + x + ')^2',
+    	    lambda x : '1/1+' + x,
+    	    lambda x : '1/1+' + x + '^2',
+    	    lambda x : '1/(1+' + x + ')^2',
+     	    lambda x : '1/' + x,
+	    #lambda x : '1/' + x + '^2',
+    	    #lambda x : '1/' + x + '^3'
         ]
-        lib_x = ps.CustomLibrary(library_functions=library_functions, function_names=library_function_names)
-        lib_xy = ps.PolynomialLibrary(degree=1, include_bias=True, include_interaction=False)
-        lib = ps.GeneralizedLibrary([lib_x, lib_xy], inputs_per_library=np.array([[0,0],[0,1]]))
+        
+        lib_custom = ps.CustomLibrary(library_functions=library_functions, function_names=library_function_names)
+        lib_poly = ps.PolynomialLibrary(degree=1, include_bias=True, include_interaction=False)
+        lib = ps.GeneralizedLibrary([lib_custom, lib_poly], inputs_per_library=np.array([[0,0],[0,1]]))
 
         coeff = []
         for i in range(n):
-            model = ps.SINDy(feature_library=lib, optimizer=ps.STLSQ(threshold=0.0001), discrete_time=True)
+            model = ps.SINDy(feature_library=lib, optimizer=Lasso(alpha=0.0001, fit_intercept=False,
+            max_iter=100000), discrete_time=True)
             model.fit(X[i].T, x_dot=dx[i].T)
             coeff.append(model.coefficients())
         return np.array(coeff)
@@ -157,4 +185,3 @@ def reconstruction(n,m,time,x,y):
         xx, yy = np.meshgrid(xxx, xxx)
         L_predicted = L_predicted[xx,yy]
         return L_predicted
-
