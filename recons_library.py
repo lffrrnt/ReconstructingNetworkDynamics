@@ -7,22 +7,29 @@ from sklearn.linear_model import Lasso
 from sklearn.metrics import pairwise_distances
 
 def network_generate(n,eta):
-        G = nx.scale_free_graph(n, alpha=0.2, beta=0.3, gamma=0.5) #obtain a directed graph
+        #obtain a directed scale-free graph
+        G = nx.scale_free_graph(n, alpha=0.2, beta=0.3, gamma=0.5)
+
         #remove self loops
         G.remove_edges_from(nx.selfloop_edges(G))
+
         #remove repeated links
         removed_list = []
         for edge in G.edges:
                 if edge[2] != 0:
                         removed_list.append(edge)
         G.remove_edges_from(removed_list)
+
+	#add random weights to links 
         for edge in range(G.number_of_edges()):
                 list(G.edges(data=True))[edge][2]["weight"] = np.random.uniform(1.-eta,1.+eta)
+
         A = nx.adj_matrix(G).todense().T
         k_in = np.zeros(G.number_of_nodes())
         for node in range(G.number_of_nodes()):
                 if G.in_degree(node) != 0:
                         k_in[node] = sum(list(G.in_edges(node, data=True))[i][2]["weight"] for i in range(G.in_degree(node)))
+
         #weighted laplacian matrix
         L = np.diag(k_in) - A
         delta = np.max(k_in)
@@ -32,12 +39,12 @@ def network_generate(n,eta):
         return G, A, k_in, L, delta
 
 def undirected_network(n):
-    G = nx.barabasi_albert_graph(n,2)
-    A = nx.adjacency_matrix(G).todense()
-    L = nx.laplacian_matrix(G).todense()
-    degrees = np.array(G.degree)[:,1]
-    delta = np.max(degrees)
-    return G, A, L, degrees, delta
+        G = nx.barabasi_albert_graph(n,2)
+        A = nx.adjacency_matrix(G).todense()
+        L = nx.laplacian_matrix(G).todense()
+        degrees = np.array(G.degree)[:,1]
+        delta = np.max(degrees)
+        return G, A, L, degrees, delta
 
 def sync_error(x):
         err = map(lambda t: np.mean(pdist(x[:,:,t])), np.arange(x.shape[2]))
@@ -58,12 +65,15 @@ def data_generate(n,m,transient,time,beta,mu,sigma,C,L,delta,h,gamma,x_noise):
         x[0,:,0] = np.random.uniform(0.0,1.0,n)
         x[1,:,0] = np.random.uniform(0.0,1.0,n)
         x0 = np.vstack((x[0,:,0],x[1,:,0])).flatten()
+        
         #transient for the isolated dynamics
         for l in range(transient):
                 x0 = rulkov_map(x0)
+                
         # transient for the coupled dynamics
         for l in range(transient):
                 x0 = net_dynamics(x0)
+                
         x=np.zeros([m*n,time])
         x[:,0] = x0
         for l in range(time-1):
@@ -96,7 +106,7 @@ def predicted_models(n,X,dx):
             #lambda x : 1/x**3
         ]
         library_function_names = [
-             #lambda x : 'e^' + x,
+            #lambda x : 'e^' + x,
     	    #lambda x : 'ln(1-'+ x + ')',
             #lambda x : 'ln(1+'+ x + ')',
     	    lambda x : 'sin(' + x + ')',
@@ -140,18 +150,24 @@ def similarity(n,x,coeff,k_in):
         #Check the correlation between gorund-truth time series u-component
         corr_matrix_gt = np.corrcoef(x[:,0,:], x[:,0,:])[0:n,0:n]
         distance_matrix = pairwise_distances(coeff[:,0,:], metric='seuclidean')
+        
         #similarity analysis
         s = np.sum(distance_matrix, axis=1)
         s_gt = np.sum(np.abs(corr_matrix_gt), axis=1)
+        
         #predicted low-degree node
         print('one of the low degree nodes:', np.argmin(s))
+        
         #predicted hub
         print('predicted hub:', np.argmax(s))
+        
         #check
         print('Predicted low degree node', np.argmin(s), 'has', k_in[np.argmin(s)], 'in connection(s).')
         print('The real hub is:', np.argmax(k_in))
+        
         hub_id = np.argmax(s)
         ld_id = np.argmin(s)
+        
         return corr_matrix_gt, distance_matrix, s, s_gt, hub_id, ld_id
 
 def local_dynamics_function(n,m,time,x,beta,mu,sigma):
